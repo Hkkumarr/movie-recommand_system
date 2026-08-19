@@ -8,23 +8,32 @@ import streamlit as st
 import pickle
 import requests
 
-@st.cache_data(show_spinner=False)
 def fetch_poster(movie_id):
-    try:
-        response = requests.get(
-            f'https://api.themoviedb.org/3/movie/{int(movie_id)}',
-            params={
-                'api_key': st.secrets['TMDB_API_KEY'],
-                'language': 'en-US'
-            },
-            headers={'User-Agent': 'Mozilla/5.0'},
-            timeout=5
-        )
-        response.raise_for_status()
-        poster_path = response.json().get('poster_path')
-        return 'https://image.tmdb.org/t/p/w500' + poster_path if poster_path else None
-    except (requests.exceptions.RequestException, TypeError, ValueError, KeyError):
-        return None
+    for attempt in range(3):
+        try:
+            movie_id = int(movie_id)
+            response = requests.get(
+                f'https://api.themoviedb.org/3/movie/{movie_id}',
+                params={
+                    'api_key': st.secrets['TMDB_API_KEY'],
+                    'language': 'en-US'
+                },
+                headers={'User-Agent': 'Mozilla/5.0'},
+                timeout=10
+            )
+            response.raise_for_status()
+            poster_path = response.json().get('poster_path')
+
+            if poster_path:
+                return 'https://image.tmdb.org/t/p/w500' + poster_path
+            return None
+        except requests.exceptions.RequestException:
+            if attempt == 2:
+                return None
+        except (TypeError, ValueError, KeyError):
+            return None
+
+    return None
 
 def recommend(movie):
     # Get the index of the selected movie
